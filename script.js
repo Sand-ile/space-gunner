@@ -57,17 +57,31 @@ class Projectile{
 }
 
 class Enemy{
- constructor(game){
+ constructor(game, positionX, positionY){
   this.game = game;
-  this.width;
-  this.height;
-  this.x;
-  this.y;
+  this.width = this.game.enemySize;
+  this.height = this.game.enemySize;
+  this.x = 0;;
+  this.y = 0;
+  this.positionX = positionX;
+  this.positionY = positionY;
+  this.markedForDeletion = false;
  }
  draw(context){
   context.strokeRect(this.x, this.y, this.width, this.height);
  }
- update(){}
+ update(x, y){
+  this.x = x + this.positionX;
+  this.y = y + this.positionY;
+
+  // check collision enemie -> porjectiles
+  this.game.projectilesPool.forEach((projectile)=> {
+   if (!projectile.free && this.game.checkCollision(this, projectile)) {
+    this.markedForDeletion = true;
+    projectile.reset();
+   };
+  })
+ }
 }
 
 class Wave {
@@ -76,19 +90,38 @@ class Wave {
   this.width = this.game.columns * this.game.enemySize;
   this.height = this.game.rows * this.game.enemySize;
   this.x = 0;
-  this.y = 0;
+  this.y = -this.height;
   this.speedX = 2;
   this.speedY = 0;
+  this.enemies = [];
+  this.create();
  }
  render(context){
+  if(this.y < 0) this.y += 5;
   this.speedY = 0;
-  context.strokeRect(this.x, this.y, this.width, this.height);
   if(this.x < 0 || this.x > this.game.width - this.width){
    this.speedX *= -1;
    this.speedY = this.game.enemySize;
   }
   this.x += this.speedX;
   this.y += this.speedY
+
+    this.enemies.forEach((enemy)=> {
+   enemy.update(this.x, this.y);
+   enemy.draw(context);
+  })
+
+  this.enemies = this.enemies.filter((enemy) => !enemy.markedForDeletion)
+ }
+ create(){
+  for(let y = 0; y < this.game.rows; y++){
+   for(let x = 0; x < this.game.columns; x++){
+    let enemyX = x * this.game.enemySize;
+    let enemyY = y * this.game.enemySize;
+
+    this.enemies.push(new Enemy(this.game, enemyX, enemyY))
+   }
+  }
  }
 }
 
@@ -149,6 +182,14 @@ class Game {
   for(let i = 0; i < this.projectilesPool.length; i++){
    if(this.projectilesPool[i].free) return this.projectilesPool[i];
   }
+ }
+ checkCollision(a, b){
+  return (
+   a.x < b.x + b.width &&
+   a.x + a.width > b.x &&
+   a.y < b.y + b.height &&
+   a.y + a.height > b.y
+  )
  }
 }
 
